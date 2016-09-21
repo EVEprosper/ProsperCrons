@@ -4,13 +4,15 @@
 
 import time #TODO: reduce to TIME or DATETIME?
 import datetime
-import json #ujson
+#import json #ujson
 from os import path
 
 import requests
 import pandas
 import numpy
-import plumbum
+from plumbum import cli
+import ujson as json
+requests.models.json = json #https://github.com/kennethreitz/requests/issues/1595
 
 from prosper.common.utilities import get_config, create_logger
 from prosper.warehouse.FetchConnection import *
@@ -27,20 +29,20 @@ logger = create_logger(
     'DEBUG'
 )
 
-def RateLimited(maxPerSecond):
+def RateLimited(max_per_second):
     '''decorator wrapper for handling ratelimiting'''
-    minInterval = 1.0 / float(maxPerSecond)
+    min_interval = 1.0 / float(max_per_second)
     def decorate(func):
-        lastTimeCalled = [0.0]
-        def rateLimitedFunction(*args,**kargs):
-            elapsed = time.clock() - lastTimeCalled[0]
-            leftToWait = minInterval - elapsed
-            if leftToWait>0:
-                time.sleep(leftToWait)
+        last_time_called = [0.0]
+        def RateLimitedFunction(*args,**kargs):
+            elapsed = time.clock() - last_time_called[0]
+            left_to_wait = min_interval - elapsed
+            if left_to_wait>0:
+                time.sleep(left_to_wait)
             ret = func(*args,**kargs)
-            lastTimeCalled[0] = time.clock()
+            last_time_called[0] = time.clock()
             return ret
-        return rateLimitedFunction
+        return RateLimitedFunction
     return decorate
 
 if __name__ == '__main__':
