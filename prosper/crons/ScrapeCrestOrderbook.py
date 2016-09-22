@@ -132,27 +132,6 @@ def GET_crest_url(url, debug=False, logger=None):
         raise Exception('BAD STATUS CODE: ' + str(requests.status_code))
 
     return response
-@timeit
-def test_crest_page_fetcher(base_url, debug=False, logger=None):
-    test_class = CrestPageFetcher(base_url, debug, logger)
-    return test_class
-@timeit
-def test_fancy_fetch(url, debug=False, logger=False):
-    payload = GET_crest_url(url, debug, logger)
-    return payload
-
-@timeit
-def test_direct_request(url):
-    response = None
-    header = {
-        'User-Agent': USERAGENT
-    }
-    request = requests.get(
-        url,
-        headers=header
-    )
-    response = request.json()
-    return response
 
 class CrestPageFetcher(object):
     '''container for easier fetch/process of multi-page crest requests'''
@@ -245,8 +224,8 @@ class CrestDriver(cli.Application):
                 regionid=regionid
                 )
             if self.verbose: print('-- CREST_URL=' + crest_url)
-            driver_obj = test_crest_page_fetcher(crest_url, self.bool_debug, logger)
-            test_fancy_fetch(crest_url, self.bool_debug, logger)
-            test_direct_request(crest_url)
+            driver_obj = CrestPageFetcher(crest_url, self.bool_debug, logger)
+
+
 if __name__ == '__main__':
     CrestDriver.run()
