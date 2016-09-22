@@ -1,10 +1,11 @@
 numpy==1.11.1
 pandas==0.18.1
 plumbum==1.6.2
--e git+git@github.com:EVEprosper/ProsperCommon.git@3352b48c738b7dc28f61bd943327bd46c4a12642#egg=ProsperCommon
--e git+git@github.com:EVEprosper/ProsperWarehouse.git@135accf415258fc5b832e442fb901756400dc179#egg=ProsperWarehouse
+-e git+git@github.com:EVEprosper/ProsperCommon.git@69b6a6e6dc772723672804ffc41095d963244099#egg=ProsperCommon
+-e git+git@github.com:EVEprosper/ProsperWarehouse.git@30509db98575a39d610c2a84e33e4f53c1306690#egg=ProsperWarehouse
 python-dateutil==2.5.3
 pytz==2016.6.1
 requests==2.11.1
+retrying==1.3.3
 six==1.10.0
 ujson==1.35

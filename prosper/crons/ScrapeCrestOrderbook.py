@@ -10,6 +10,7 @@ from os import path
 import requests
 import pandas
 import numpy
+from retrying import retry
 from plumbum import cli
 import ujson as json
 requests.models.json = json #https://github.com/kennethreitz/requests/issues/1595
