@@ -6,7 +6,6 @@ import time #TODO: reduce to TIME or DATETIME?
 import datetime
 #import json #ujson
 from os import path #TODO: path->plumbum?
-from timeit import timeit #todo: remove in production?
 
 import requests
 import pandas
@@ -40,7 +39,7 @@ PAGE_URI = config.get(ME, 'page_uri')
 USERAGENT = config.get('GLOBAL', 'useragent')
 RETRY_COUNT = int(config.get('GLOBAL', 'retry_count'))
 RETRY_TIME = int(config.get('GLOBAL', 'retry_time')) * 1000 #ms
-
+DEBUG = False
 #def RateLimited(max_per_second):
 #    '''decorator wrapper for handling ratelimiting'''
 #    min_interval = 1.0 / float(max_per_second)
@@ -64,7 +63,7 @@ def timeit(method):
         result = method(*args, **kw)
         te = time.time()
 
-        print('%r (%r, %r) %2.2f sec' % (method.__name__, args, kw, te-ts))
+        if DEBUG: print('-- %r (%r, %r) %2.2f sec' % (method.__name__, args, kw, te-ts))
         return result
 
     return timed
@@ -74,7 +73,7 @@ def timeit(method):
     wait_exponential_max=RETRY_TIME,
     stop_max_attempt_number=RETRY_COUNT)
 #@RateLimiter?
-def GET_crest_url(url, debug=False, logger=None):
+def GET_crest_url(url, debug=DEBUG, logger=logger):
     '''GET methods for fetching CREST data'''
     response = None
     header = {
@@ -137,7 +136,7 @@ class CrestPageFetcher(object):
     '''container for easier fetch/process of multi-page crest requests'''
     _debug = False
     _logger= None
-    def __init__(self, base_url, debug=False, logger=None):
+    def __init__(self, base_url, debug=DEBUG, logger=None):
         '''initialize container'''
         self.all_data = []
         self.page_count = 0
@@ -151,6 +150,8 @@ class CrestPageFetcher(object):
 
         print(self.page_count)
         print(self.total_count)
+
+    @timeit
     def get_pagecount(self, base_url):
         '''hits endpoint to get pagecount.  Also loads first-page data to avoid retries'''
         try:
@@ -191,7 +192,6 @@ class CrestDriver(cli.Application):
         help='Show debug outputs')
 
     region_list = [10000002]
-    bool_debug = False #set to run in debug/local mode
 
     @cli.switch(
         ['-r', '--regions='],
@@ -213,7 +213,8 @@ class CrestDriver(cli.Application):
     )
     def enable_debug(self):
         '''see help -- run local-only'''
-        self.bool_debug = True
+        global DEBUG
+        DEBUG = True
 
     def main(self):
         '''meat of script.  Logic runs here.  Write like step list'''
@@ -224,7 +225,7 @@ class CrestDriver(cli.Application):
                 regionid=regionid
                 )
             if self.verbose: print('-- CREST_URL=' + crest_url)
-            driver_obj = CrestPageFetcher(crest_url, self.bool_debug, logger)
+            driver_obj = CrestPageFetcher(crest_url, DEBUG, logger)
 
 
 if __name__ == '__main__':
