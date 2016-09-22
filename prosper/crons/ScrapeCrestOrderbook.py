@@ -19,6 +19,7 @@ from prosper.warehouse.FetchConnection import *
 from prosper.warehouse.Connection import * #OPTIONAL: for Exception handling
 
 HERE = path.abspath(path.dirname(__file__))
+ME = __file__.replace('.py', '')
 CONFIG_ABSPATH = path.join(HERE, 'cron_config.cfg')
 
 config = get_config(CONFIG_ABSPATH)
