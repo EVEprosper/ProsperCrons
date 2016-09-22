@@ -45,5 +45,39 @@ def RateLimited(max_per_second):
         return RateLimitedFunction
     return decorate
 
+class CrestDriver(cli.Application):
+    verbose = cli.Flag(
+        ['v', 'verbose'],
+        help='Show debug outputs')
+
+    region_list = [10000002]
+    bool_debug = False #set to run in debug/local mode
+
+    @cli.switch(
+        ['-r', '--regions='],
+        str,
+        help='Regions to run.  Default:' + str(region_list))
+    def parse_regions(self, region_list_str):
+        '''parses region argument to load region_list'''
+        tmp_list = region_list_str.split(',')
+        try:
+            tmp_list = list(map(int, tmp_list))
+        except Exception as error_msg:
+            raise error_msg
+
+        self.region_list = tmp_list
+
+    @cli.switch(
+        ['-d', '--debug'],
+        help='enable debug mode: run without db connection, dump to file'
+    )
+    def enable_debug(self):
+        '''see help -- run local-only'''
+        self.bool_debug = True
+
+    def main(self):
+        '''meat of script.  Logic runs here.  Write like step list'''
+        pass
+
 if __name__ == '__main__':
-    pass
+    CrestDriver.run()
