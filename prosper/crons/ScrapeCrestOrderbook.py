@@ -73,7 +73,7 @@ def timeit(method):
     wait_exponential_max=RETRY_TIME,
     stop_max_attempt_number=RETRY_COUNT)
 #@RateLimiter?
-def GET_crest_url(url, debug=DEBUG, logger=logger):
+def GET_crest_url(url, debug=DEBUG, logging=logger):
     '''GET methods for fetching CREST data'''
     response = None
     header = {
@@ -81,7 +81,7 @@ def GET_crest_url(url, debug=DEBUG, logger=logger):
     }
     debug_str = '-- Fetching ' + url
     if debug: print(debug_str)
-    if logger: logger.debug(debug_str)
+    if logging: logging.debug(debug_str)
 
     try:
         request = requests.get(
@@ -97,7 +97,7 @@ def GET_crest_url(url, debug=DEBUG, logger=logger):
                 url=url
             )
         if debug: print(error_str)
-        if logger: logger.error(error_str)
+        if logging: logging.error(error_str)
 
         raise error_msg #exception triggers @retry
 
@@ -114,7 +114,7 @@ def GET_crest_url(url, debug=DEBUG, logger=logger):
                     url=url
                 )
             if debug: print(error_str)
-            if logger: logger.error(error_str)
+            if logging: logging.error(error_str)
 
             raise error_msg #exception triggers @retry
     else:
@@ -126,7 +126,7 @@ def GET_crest_url(url, debug=DEBUG, logger=logger):
                 url=url
             )
         if debug: print(error_str)
-        if logger: logger.error(error_str)
+        if logging: logging.error(error_str)
 
         raise Exception('BAD STATUS CODE: ' + str(requests.status_code))
 
@@ -136,13 +136,13 @@ class CrestPageFetcher(object):
     '''container for easier fetch/process of multi-page crest requests'''
     _debug = False
     _logger= None
-    def __init__(self, base_url, debug=DEBUG, logger=None):
+    def __init__(self, base_url, debug=DEBUG, logging=None):
         '''initialize container'''
         self.all_data = []
         self.page_count = 0
         self.base_url = base_url
         self._debug = debug
-        self._logger = logger
+        self._logger = logging
         try:
             self.page_count, self.total_count = self.get_pagecount(base_url)
         except Exception as error_msg:
