@@ -143,6 +143,7 @@ class CrestPageFetcher(object):
         self.base_url = base_url
         self._debug = debug
         self._logger = logging
+        self.current_page = 1
         try:
             self.page_count, self.total_count = self.get_pagecount(base_url)
         except Exception as error_msg:
@@ -155,7 +156,7 @@ class CrestPageFetcher(object):
     def get_pagecount(self, base_url):
         '''hits endpoint to get pagecount.  Also loads first-page data to avoid retries'''
         try:
-            payload = GET_crest_url(base_url)
+            payload = GET_crest_url(base_url, self._debug, self._logger)
         except Exception as error_msg:
             error_str = '''EXCEPTION: Unable to process get_pagecount request
         exception={exception}
@@ -192,17 +193,29 @@ class CrestPageFetcher(object):
         fetched_data = []
         fetched_data[0] = self.all_data #page0 should already be loaded
 
+    def fetch_endpoint(self):
+        '''load self.all_data and return with all pages'''
+        if self.current_page == self.page_count:
+            #if we already walked all pages, just return data
+            return self.all_data
+
+        for page in self:
+            pass #just run __iter__ it will write self.all_data
+
+        return self.all_data
+
     def __iter__(self):
         '''iter magic to walk pages single-thread'''
         yield self.all_data #should already have page1 loaded by __init__
         page=2              #page1 fetched by get_pagecount() in __init__
         while page <= self.page_count:
+            self.current_page = page
             page_url = self.base_url + PAGE_URI
             page_url = page_url.format(
                 page_number=page
             )
             try:
-                payload = GET_crest_url(page_url)
+                payload = GET_crest_url(page_url, self._debug, self._logger)
             except Exception as error_msg:
                 error_str = '''EXCEPTION: Unable to process get_pagecount request
             exception={exception}
@@ -260,7 +273,10 @@ class CrestDriver(cli.Application):
                 )
             if self.verbose: print('-- CREST_URL=' + crest_url)
             driver_obj = CrestPageFetcher(crest_url, DEBUG, logger)
-
+            all_data = driver_obj.fetch_endpoint()
+            print(all_data[-1])
+            with open('test_data.json', 'w') as filehandle:
+                json.dump(all_data, filehandle)
 
 if __name__ == '__main__':
     CrestDriver.run()
