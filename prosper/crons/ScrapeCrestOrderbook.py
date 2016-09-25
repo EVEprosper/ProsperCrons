@@ -173,6 +173,7 @@ class CrestPageFetcher(object):
             total_count= payload['totalCount']
             self.all_data.extend(payload['items'])
         except KeyError as error_msg:
+            #note: even 1-page resources should return pageCount/totalCount
             error_str = '''EXCEPTION: could not find required metadata keys
         exception={exception}
         url={base_url}'''.\
@@ -185,6 +186,39 @@ class CrestPageFetcher(object):
             raise error_msg
 
         return page_count, total_count
+
+    def fetch_pages(self):
+        '''multi-threadded fetch of remaining pages'''
+        fetched_data = []
+        fetched_data[0] = self.all_data #page0 should already be loaded
+
+    def __iter__(self):
+        '''iter magic to walk pages single-thread'''
+        yield self.all_data #should already have page1 loaded by __init__
+        page=2              #page1 fetched by get_pagecount() in __init__
+        while page <= self.page_count:
+            page_url = self.base_url + PAGE_URI
+            page_url = page_url.format(
+                page_number=page
+            )
+            try:
+                payload = GET_crest_url(page_url)
+            except Exception as error_msg:
+                error_str = '''EXCEPTION: Unable to process get_pagecount request
+            exception={exception}
+            url={base_url}'''.\
+                    format(
+                        exception=str(error_msg),
+                        base_url=page_url
+                    )
+                if self._debug: print(error_str)
+                if self._logger: self._logger.error(error_str)
+                raise error_msg
+
+            page += 1
+            self.all_data.extend(payload['items'])
+            yield payload['items']
+
 
 class CrestDriver(cli.Application):
     verbose = cli.Flag(
