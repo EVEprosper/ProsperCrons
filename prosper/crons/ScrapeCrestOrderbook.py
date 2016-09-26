@@ -211,6 +211,7 @@ class CrestPageFetcher(object):
         fetched_data = []
         fetched_data[0] = self.all_data #page0 should already be loaded
 
+    @timeit
     def fetch_endpoint(self):
         '''load self.all_data and return with all pages'''
         if self.current_page == self.page_count:
@@ -270,51 +271,67 @@ def pandify_data(data, debug=DEBUG, logging=logger):
     pd_data['buy_sell'] = None
     pd_data.loc[pd_data.buy == False, 'buy_sell'] = 'SELL'
     pd_data.loc[pd_data.buy == True,  'buy_sell'] = 'BUY'
-    pd_data['grouping'] = \
-        pd_data['stationID'].map(str) + '-' + \
-        pd_data['type'].map(str) + '-' + \
-        pd_data['buy_sell'].map(str)
     pd_data['station_type'] = None
     pd_data.loc[pd_data.stationID > 70000000, 'station_type'] = 'citadelid'
     pd_data.loc[pd_data.stationID < 70000000, 'station_type'] = 'stationid'
 
+    ## NOTE: grouping is Prosper-specific.  Swap station_type/id for more generic grouping
+    pd_data['grouping'] = \
+        pd_data['type'].map(str) + '-' + \
+        pd_data['station_type'] + '-' + \
+        pd_data['buy_sell'].map(str)
+        #pd_data['stationID'].map(str) + '-' + \
+
     if debug: print('-- conditioning frame for export')
     if logging: logging.info('-- conditioning frame for export')
-    #pd_sell = pd_data[pd_data.buy_sell == 'SELL']
+
     group = ['stationID', 'type', 'buy_sell']
-    #pd_data['indx']= pd_data.groupby(group)['stationID', 'type'].\
-    #    apply(calc_percentile, .75, axis=1)
     pd_data['min']     = pd_data.groupby('grouping')['price'].transform('min')
     pd_data['max']     = pd_data.groupby('grouping')['price'].transform('max')
     pd_data['vol_tot'] = pd_data.groupby('grouping')['volume'].transform('cumsum')
-    #print(pd_data.groupby(group)['price','volume'])
-    #pd_sell['p_quartile'] = pd_sell.groupby(group)['price','volume'].\
-    #    apply(lambda x: calc_percentile(x, percentile=75))
-    count = 0
-    pd_data = pd_data[pd_data.vol_tot > 1000]
+    ### vv DEBUG vv ##
+    #count = 0
+    #pd_data = pd_data[pd_data.vol_tot > 1000]
+    ### ^^ DEBUG ^^ ##
+    if debug: print('-- calculating stats')
+    if logging: logging.info('-- calculating stats')
+    pd_data['vol_adj'] = None       #only count valid orders
+    pd_data['price_avg'] = None     #average culls outliers
+    pd_data['price_med'] = None
+    pd_data['price_q'] = None
+    pd_data['price_cutoff'] = None
     for key in pd_data.grouping.unique():
-        print(key)
+        #print(key)
         value_counts = pd_data[pd_data.grouping == key]
         value_counts = value_counts[['price', 'volume']]
 
         median = wquantile(value_counts['price'], value_counts['volume'], 0.5)
         quartile = 0
         cutoff = 0
+        ## Filter out to valid orders only ##
         if 'SELL' in key:
             quartile = wquantile(value_counts['price'], value_counts['volume'], 0.75)
             cutoff = quartile * OUTLIER_FACTOR
+            value_counts = value_counts[value_counts.price < cutoff]
         else:
             quartile = wquantile(value_counts['price'], value_counts['volume'], 0.25)
             cutoff = quartile / OUTLIER_FACTOR
-        prices = value_counts.price.values
-        volumes= value_counts.volume.values
+            value_counts = value_counts[value_counts.price > cutoff]
+        prices  = value_counts.price.values
+        volumes = value_counts.volume.values
         average = numpy.dot(prices, volumes)/sum(volumes) #sumproduct(prices, volumes)/sum(volume)
-        print(average)
 
-        count += 1
-        if count > 10:
-            exit()
-    print(pd_data.columns.values)
+        pd_data.loc[pd_data.grouping == key, 'vol_adj']      = sum(volumes)
+        pd_data.loc[pd_data.grouping == key, 'price_avg']    = average
+        pd_data.loc[pd_data.grouping == key, 'price_med']    = median
+        pd_data.loc[pd_data.grouping == key, 'price_q']      = quartile
+        pd_data.loc[pd_data.grouping == key, 'price_cutoff'] = cutoff
+    #    ## vv DEBUG vv ##
+    #    count += 1
+    #    if count > 10:
+    #        exit()
+    #    ## ^^ DEBUG ^^ ##
+    #print(pd_data.columns.values)
 
     if debug: pd_data.to_csv('test_data.csv')
 
@@ -363,14 +380,14 @@ class CrestDriver(cli.Application):
             if self.verbose: print('-- CREST_URL=' + crest_url)
             driver_obj = CrestPageFetcher(crest_url, DEBUG, logger)
 
-            all_data = driver_obj.all_data
+            #all_data = driver_obj.all_data
+            all_data = driver_obj.fetch_endpoint()
             pd_all_data = pandify_data(all_data, DEBUG, logger)
 
-            #all_data = driver_obj.fetch_endpoint()
-#
-            #print(all_data[-5])
-            #with open('test_data.json', 'w') as filehandle:
-            #    json.dump(all_data, filehandle)
+            ## vv DEBUG vv ##
+            with open('test_data.json', 'w') as filehandle:
+                json.dump(all_data, filehandle)
+            ## ^^ DEBUG ^^ ##
 
 if __name__ == '__main__':
     CrestDriver.run()
