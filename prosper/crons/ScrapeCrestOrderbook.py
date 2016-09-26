@@ -300,38 +300,39 @@ def pandify_data(data, debug=DEBUG, logging=logger):
     pd_data['price_med'] = None
     pd_data['price_q'] = None
     pd_data['price_cutoff'] = None
-    for key in pd_data.grouping.unique():
-        #print(key)
-        value_counts = pd_data[pd_data.grouping == key]
-        value_counts = value_counts[['price', 'volume']]
-
-        median = wquantile(value_counts['price'], value_counts['volume'], 0.5)
-        quartile = 0
-        cutoff = 0
-        ## Filter out to valid orders only ##
-        if 'SELL' in key:
-            quartile = wquantile(value_counts['price'], value_counts['volume'], 0.75)
-            cutoff = quartile * OUTLIER_FACTOR
-            value_counts = value_counts[value_counts.price < cutoff]
-        else:
-            quartile = wquantile(value_counts['price'], value_counts['volume'], 0.25)
-            cutoff = quartile / OUTLIER_FACTOR
-            value_counts = value_counts[value_counts.price > cutoff]
-        prices  = value_counts.price.values
-        volumes = value_counts.volume.values
-        average = numpy.dot(prices, volumes)/sum(volumes) #sumproduct(prices, volumes)/sum(volume)
-
-        pd_data.loc[pd_data.grouping == key, 'vol_adj']      = sum(volumes)
-        pd_data.loc[pd_data.grouping == key, 'price_avg']    = average
-        pd_data.loc[pd_data.grouping == key, 'price_med']    = median
-        pd_data.loc[pd_data.grouping == key, 'price_q']      = quartile
-        pd_data.loc[pd_data.grouping == key, 'price_cutoff'] = cutoff
-    #    ## vv DEBUG vv ##
-    #    count += 1
-    #    if count > 10:
-    #        exit()
-    #    ## ^^ DEBUG ^^ ##
-    #print(pd_data.columns.values)
+    print(len(pd_data.grouping.unique()))
+#    for key in pd_data.grouping.unique():
+#        #print(key)
+#        value_counts = pd_data[pd_data.grouping == key]
+#        value_counts = value_counts[['price', 'volume']]
+#
+#        median = wquantile(value_counts['price'], value_counts['volume'], 0.5)
+#        quartile = 0
+#        cutoff = 0
+#        ## Filter out to valid orders only ##
+#        if 'SELL' in key:
+#            quartile = wquantile(value_counts['price'], value_counts['volume'], 0.75)
+#            cutoff = quartile * OUTLIER_FACTOR
+#            value_counts = value_counts[value_counts.price < cutoff]
+#        else:
+#            quartile = wquantile(value_counts['price'], value_counts['volume'], 0.25)
+#            cutoff = quartile / OUTLIER_FACTOR
+#            value_counts = value_counts[value_counts.price > cutoff]
+#        prices  = value_counts.price.values
+#        volumes = value_counts.volume.values
+#        average = numpy.dot(prices, volumes)/sum(volumes) #sumproduct(prices, volumes)/sum(volume)
+#
+#        pd_data.loc[pd_data.grouping == key, 'vol_adj']      = sum(volumes)
+#        pd_data.loc[pd_data.grouping == key, 'price_avg']    = average
+#        pd_data.loc[pd_data.grouping == key, 'price_med']    = median
+#        pd_data.loc[pd_data.grouping == key, 'price_q']      = quartile
+#        pd_data.loc[pd_data.grouping == key, 'price_cutoff'] = cutoff
+#    #    ## vv DEBUG vv ##
+#    #    count += 1
+#    #    if count > 10:
+#    #        exit()
+#    #    ## ^^ DEBUG ^^ ##
+#    #print(pd_data.columns.values)
 
     if debug: pd_data.to_csv('test_data.csv')
 
