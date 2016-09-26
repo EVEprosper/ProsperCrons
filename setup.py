@@ -46,6 +46,7 @@ setup(
         'retrying==1.3.3',
         'six==1.10.0',
         'ujson==1.35',
+        'wquantiles==0.4'
     ],
     dependency_links=[
         'https://github.com/EVEprosper/ProsperCommon.git#egg=ProsperCommon',

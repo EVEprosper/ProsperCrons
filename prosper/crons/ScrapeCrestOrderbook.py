@@ -12,6 +12,7 @@ import pandas
 import numpy
 from retrying import retry
 from ratelimiter import RateLimiter
+from weighted import quantile as wquantile #wquantile -- dev is bad and should feel bad
 from plumbum import cli
 import ujson as json
 requests.models.json = json #https://github.com/kennethreitz/requests/issues/1595
@@ -40,23 +41,10 @@ PAGE_URI = config.get(ME, 'page_uri')
 USERAGENT = config.get('GLOBAL', 'useragent')
 RETRY_COUNT = int(config.get('GLOBAL', 'retry_count'))
 RETRY_TIME = int(config.get('GLOBAL', 'retry_time')) * 1000 #ms
-HUB_LIST = map(int,config.get(ME, 'hub_list').split(','))
+HUB_LIST = map(int, config.get(ME, 'hub_list').split(','))
+OUTLIER_FACTOR = int(config.get(ME, 'outlier_factor'))
 DEBUG = False
-#def RateLimited(max_per_second):
-#    '''decorator wrapper for handling ratelimiting'''
-#    min_interval = 1.0 / float(max_per_second)
-#    def decorate(func):
-#        last_time_called = [0.0]
-#        def RateLimitedFunction(*args,**kargs):
-#            elapsed = time.clock() - last_time_called[0]
-#            left_to_wait = min_interval - elapsed
-#            if left_to_wait>0:
-#                time.sleep(left_to_wait)
-#            ret = func(*args,**kargs)
-#            last_time_called[0] = time.clock()
-#            return ret
-#        return RateLimitedFunction
-#    return decorate#
+
 
 def timeit(method):
     '''stolen from: http://www.samuelbosch.com/2012/02/timing-functions-in-python.html'''
@@ -262,25 +250,11 @@ class CrestPageFetcher(object):
             self.all_data.extend(payload['items'])
             yield payload['items']
 
-def calc_percentile(
-        x,
-        percentile,
-        #debug=DEBUG, logging=logger
-):
-    '''calculate percentiles off an array of values/counts'''
-    print(x)
-    exit()
-    values = x[0]
-    counts = x[1]
-    stacked_vector = []
-    index=0
-    for value in values:
-        stacked_value = [value] * counts[index]
-        stacked_vector.extend(stacked_value)
-        index += 1
-
-    return numpy.percentile(stacked_vector, percentile)
-
+def calc_mean(group_df):
+    '''calculate the mean from weights'''
+    count = group_df['volume'].sum()
+    cumsum = group_df.cumsum()
+    return cumsum/count
 
 @timeit
 def pandify_data(data, debug=DEBUG, logging=logger):
@@ -310,13 +284,36 @@ def pandify_data(data, debug=DEBUG, logging=logger):
     group = ['stationID', 'type', 'buy_sell']
     #pd_data['indx']= pd_data.groupby(group)['stationID', 'type'].\
     #    apply(calc_percentile, .75, axis=1)
-    pd_data['min'] = pd_data.groupby(group)['price'].transform('min')
-    pd_data['max'] = pd_data.groupby(group)['price'].transform('max')
-    pd_data['vol_tot'] = pd_data.groupby(group)['volume'].transform('cumsum')
-    print(pd_data.groupby(group)['price','volume'])
+    pd_data['min']     = pd_data.groupby('grouping')['price'].transform('min')
+    pd_data['max']     = pd_data.groupby('grouping')['price'].transform('max')
+    pd_data['vol_tot'] = pd_data.groupby('grouping')['volume'].transform('cumsum')
+    #print(pd_data.groupby(group)['price','volume'])
     #pd_sell['p_quartile'] = pd_sell.groupby(group)['price','volume'].\
     #    apply(lambda x: calc_percentile(x, percentile=75))
+    count = 0
+    pd_data = pd_data[pd_data.vol_tot > 1000]
+    for key in pd_data.grouping.unique():
+        print(key)
+        value_counts = pd_data[pd_data.grouping == key]
+        value_counts = value_counts[['price', 'volume']]
 
+        median = wquantile(value_counts['price'], value_counts['volume'], 0.5)
+        quartile = 0
+        cutoff = 0
+        if 'SELL' in key:
+            quartile = wquantile(value_counts['price'], value_counts['volume'], 0.75)
+            cutoff = quartile * OUTLIER_FACTOR
+        else:
+            quartile = wquantile(value_counts['price'], value_counts['volume'], 0.25)
+            cutoff = quartile / OUTLIER_FACTOR
+        prices = value_counts.price.values
+        volumes= value_counts.volume.values
+        average = numpy.dot(prices, volumes)/sum(volumes) #sumproduct(prices, volumes)/sum(volume)
+        print(average)
+
+        count += 1
+        if count > 10:
+            exit()
     print(pd_data.columns.values)
 
     if debug: pd_data.to_csv('test_data.csv')
