@@ -35,10 +35,12 @@ logger = create_logger(
 ## CREST GLOBALS ##
 CREST_BASE_URL = config.get('GLOBAL', 'crest_base_url')
 ENDPOINT_URI = config.get(ME, 'crest_endpoint')
+SOLARSYSTEM_ENDPOINT = config.get(ME, 'solarsystem_endpoint')
 PAGE_URI = config.get(ME, 'page_uri')
 USERAGENT = config.get('GLOBAL', 'useragent')
 RETRY_COUNT = int(config.get('GLOBAL', 'retry_count'))
 RETRY_TIME = int(config.get('GLOBAL', 'retry_time')) * 1000 #ms
+HUB_LIST = map(int,config.get(ME, 'hub_list').split(','))
 DEBUG = False
 #def RateLimited(max_per_second):
 #    '''decorator wrapper for handling ratelimiting'''
@@ -63,7 +65,7 @@ def timeit(method):
         result = method(*args, **kw)
         te = time.time()
 
-        if DEBUG: print('-- %r (%r, %r) %2.2f sec' % (method.__name__, args, kw, te-ts))
+        if DEBUG: print('-- %r %2.2f sec' % (method.__name__, te-ts))
         return result
 
     return timed
@@ -131,6 +133,34 @@ def GET_crest_url(url, debug=DEBUG, logging=logger):
         raise Exception('BAD STATUS CODE: ' + str(requests.status_code))
 
     return response
+
+@timeit
+def fetch_map_info(systemid, debug=DEBUG, logging=logger):
+    '''ping CREST for map info.  Return regionid, neighbor_list'''
+    solarsystem_url = CREST_BASE_URL + SOLARSYSTEM_ENDPOINT
+    solarsystem_url = solarsystem_url.format(systemid=systemid)
+    solarsystem_info = GET_crest_url(solarsystem_url, debug, logging)
+
+    if debug: print('-- Fetching region info from CREST')
+    if logging: logging.info('-- Fetching region info from CREST')
+    constellation_url = solarsystem_info['constellation']['href']
+    constellation_info = GET_crest_url(constellation_url, DEBUG, logger)
+    region_url = constellation_info['region']['href']
+    region_info = GET_crest_url(region_url, debug, logging) #TODO: split('/')
+    regionid = int(region_info['id'])
+
+    neighbor_list = []
+    #for stargate in solarsystem_info['stargates']:
+    #    stargate_name = stargate['name']
+    #    if debug: print('--Fetching stargate info: ' + stargate_name)
+    #    if logging: logging.info('-- Fetching stargate info: ' + stargate_name)
+#
+    #    stargate_url = stargate['href']
+    #    stargate_info = GET_crest_url(stargate_url, debug, logging)
+#
+    #    neighbor_list.append(int(stargate_info['destination']['system']['id']))
+
+    return regionid, neighbor_list
 
 class CrestPageFetcher(object):
     '''container for easier fetch/process of multi-page crest requests'''
@@ -232,27 +262,87 @@ class CrestPageFetcher(object):
             self.all_data.extend(payload['items'])
             yield payload['items']
 
+def calc_percentile(
+        x,
+        percentile,
+        #debug=DEBUG, logging=logger
+):
+    '''calculate percentiles off an array of values/counts'''
+    print(x)
+    exit()
+    values = x[0]
+    counts = x[1]
+    stacked_vector = []
+    index=0
+    for value in values:
+        stacked_value = [value] * counts[index]
+        stacked_vector.extend(stacked_value)
+        index += 1
+
+    return numpy.percentile(stacked_vector, percentile)
+
+
+@timeit
+def pandify_data(data, debug=DEBUG, logging=logger):
+    '''process data into dataframe for writing'''
+    pd_data = pandas.DataFrame(data)
+
+    if debug: print('-- removing unneeded data from frame')
+    if logging: logging.info('-- removing unneeded data from frame')
+    pd_data = pd_data[pd_data.duration < 365]   #clip all NPC orders
+    pd_data_hub = pd_data[pd_data.stationID.isin(HUB_LIST)]
+    pd_data_citadel = pd_data[pd_data.stationID > 70000000]
+    pd_data = pd_data_hub.append(pd_data_citadel, ignore_index=True)    #save citadel/hub only
+    pd_data['buy_sell'] = None
+    pd_data.loc[pd_data.buy == False, 'buy_sell'] = 'SELL'
+    pd_data.loc[pd_data.buy == True,  'buy_sell'] = 'BUY'
+    pd_data['grouping'] = \
+        pd_data['stationID'].map(str) + '-' + \
+        pd_data['type'].map(str) + '-' + \
+        pd_data['buy_sell'].map(str)
+    pd_data['station_type'] = None
+    pd_data.loc[pd_data.stationID > 70000000, 'station_type'] = 'citadelid'
+    pd_data.loc[pd_data.stationID < 70000000, 'station_type'] = 'stationid'
+
+    if debug: print('-- conditioning frame for export')
+    if logging: logging.info('-- conditioning frame for export')
+    #pd_sell = pd_data[pd_data.buy_sell == 'SELL']
+    group = ['stationID', 'type', 'buy_sell']
+    #pd_data['indx']= pd_data.groupby(group)['stationID', 'type'].\
+    #    apply(calc_percentile, .75, axis=1)
+    pd_data['min'] = pd_data.groupby(group)['price'].transform('min')
+    pd_data['max'] = pd_data.groupby(group)['price'].transform('max')
+    pd_data['vol_tot'] = pd_data.groupby(group)['volume'].transform('cumsum')
+    print(pd_data.groupby(group)['price','volume'])
+    #pd_sell['p_quartile'] = pd_sell.groupby(group)['price','volume'].\
+    #    apply(lambda x: calc_percentile(x, percentile=75))
+
+    print(pd_data.columns.values)
+
+    if debug: pd_data.to_csv('test_data.csv')
+
+    return pd_data
 
 class CrestDriver(cli.Application):
     verbose = cli.Flag(
         ['v', 'verbose'],
         help='Show debug outputs')
 
-    region_list = [10000002]
+    system_list = [30000142]
 
     @cli.switch(
         ['-r', '--regions='],
         str,
-        help='Regions to run.  Default:' + str(region_list))
+        help='Regions to run.  Default:' + str(system_list))
     def parse_regions(self, region_list_str):
-        '''parses region argument to load region_list'''
+        '''parses region argument to load system_list'''
         tmp_list = region_list_str.split(',')
         try:
             tmp_list = list(map(int, tmp_list))
         except Exception as error_msg:
             raise error_msg
 
-        self.region_list = tmp_list
+        self.system_list = tmp_list
 
     @cli.switch(
         ['-d', '--debug'],
@@ -265,7 +355,9 @@ class CrestDriver(cli.Application):
 
     def main(self):
         '''meat of script.  Logic runs here.  Write like step list'''
-        for regionid in self.region_list:
+        for systemid in self.system_list:
+            if self.verbose: print('looking up CREST MAP info for system: ' + str(systemid))
+            regionid, neighbor_list = fetch_map_info(systemid, DEBUG, logger)
             if self.verbose: print('FETCHING REGION: ' + str(regionid))
             crest_url = CREST_BASE_URL + ENDPOINT_URI
             crest_url = crest_url.format(
@@ -273,10 +365,15 @@ class CrestDriver(cli.Application):
                 )
             if self.verbose: print('-- CREST_URL=' + crest_url)
             driver_obj = CrestPageFetcher(crest_url, DEBUG, logger)
-            all_data = driver_obj.fetch_endpoint()
-            print(all_data[-1])
-            with open('test_data.json', 'w') as filehandle:
-                json.dump(all_data, filehandle)
+
+            all_data = driver_obj.all_data
+            pd_all_data = pandify_data(all_data, DEBUG, logger)
+
+            #all_data = driver_obj.fetch_endpoint()
+#
+            #print(all_data[-5])
+            #with open('test_data.json', 'w') as filehandle:
+            #    json.dump(all_data, filehandle)
 
 if __name__ == '__main__':
     CrestDriver.run()
