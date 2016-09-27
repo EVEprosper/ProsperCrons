@@ -256,6 +256,19 @@ def calc_mean(group_df):
     count = group_df['volume'].sum()
     cumsum = group_df.cumsum()
     return cumsum/count
+COUNT = 0
+def wmed(group, percentile=0.5):
+    global COUNT
+    if COUNT < 1:
+        print(percentile)
+    COUNT += 1
+    try:
+        vec = wquantile(group['price'], group['volume'], percentile)
+    except Exception:
+        print('COUNT='+str(COUNT))
+        print(group.iloc[[COUNT]])
+    #print(vec)
+    return vec
 
 @timeit
 def pandify_data(data, debug=DEBUG, logging=logger):
@@ -281,7 +294,9 @@ def pandify_data(data, debug=DEBUG, logging=logger):
         pd_data['station_type'] + '-' + \
         pd_data['buy_sell'].map(str)
         #pd_data['stationID'].map(str) + '-' + \
-
+    pd_data.grouping = pd_data.grouping.apply(str)
+    pd_data.volume = pd_data.volume.apply(int)
+    pd_data.price = pd_data.price.apply(float)
     if debug: print('-- conditioning frame for export')
     if logging: logging.info('-- conditioning frame for export')
 
@@ -295,12 +310,15 @@ def pandify_data(data, debug=DEBUG, logging=logger):
     ### ^^ DEBUG ^^ ##
     if debug: print('-- calculating stats')
     if logging: logging.info('-- calculating stats')
+    print(len(pd_data.grouping.unique()))
+    #groups = pd_data.groupby('grouping')['price', 'volume'].apply(wmed, 0.5)
+    print(pd_data.groupby('grouping')['price', 'volume'].apply(wmed, 0.75))
+    pd_data['median'] = pd_data.groupby('grouping')['price', 'volume'].apply(wmed, 0.5)
     pd_data['vol_adj'] = None       #only count valid orders
     pd_data['price_avg'] = None     #average culls outliers
     pd_data['price_med'] = None
     pd_data['price_q'] = None
     pd_data['price_cutoff'] = None
-    print(len(pd_data.grouping.unique()))
 #    for key in pd_data.grouping.unique():
 #        #print(key)
 #        value_counts = pd_data[pd_data.grouping == key]
@@ -327,12 +345,12 @@ def pandify_data(data, debug=DEBUG, logging=logger):
 #        pd_data.loc[pd_data.grouping == key, 'price_med']    = median
 #        pd_data.loc[pd_data.grouping == key, 'price_q']      = quartile
 #        pd_data.loc[pd_data.grouping == key, 'price_cutoff'] = cutoff
-#    #    ## vv DEBUG vv ##
-#    #    count += 1
-#    #    if count > 10:
-#    #        exit()
-#    #    ## ^^ DEBUG ^^ ##
-#    #print(pd_data.columns.values)
+    #    ## vv DEBUG vv ##
+    #    count += 1
+    #    if count > 10:
+    #        exit()
+    #    ## ^^ DEBUG ^^ ##
+    #print(pd_data.columns.values)
 
     if debug: pd_data.to_csv('test_data.csv')
 
@@ -381,8 +399,8 @@ class CrestDriver(cli.Application):
             if self.verbose: print('-- CREST_URL=' + crest_url)
             driver_obj = CrestPageFetcher(crest_url, DEBUG, logger)
 
-            #all_data = driver_obj.all_data
-            all_data = driver_obj.fetch_endpoint()
+            all_data = driver_obj.all_data
+            #all_data = driver_obj.fetch_endpoint()
             pd_all_data = pandify_data(all_data, DEBUG, logger)
 
             ## vv DEBUG vv ##
