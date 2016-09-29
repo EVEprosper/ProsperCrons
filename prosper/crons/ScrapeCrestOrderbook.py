@@ -69,9 +69,6 @@ def GET_crest_url(url, debug=DEBUG, logging=logger):
     header = {
         'User-Agent': USERAGENT
     }
-    #debug_str = '-- Fetching ' + url
-    #if debug: print(debug_str)
-    #if logging: logging.debug(debug_str)
     logger.info('-- Fetching ' + url)
     try:
         request = requests.get(
@@ -79,15 +76,6 @@ def GET_crest_url(url, debug=DEBUG, logging=logger):
             headers=header
         )
     except Exception as error_msg:
-#        error_str = '''EXCEPTION: request failed
-#    exception={exception}
-#    url={url}'''.\
-#            format(
-#                exception=str(error_msg),
-#                url=url
-#            )
-#        if debug: print(error_str)
-#        if logging: logging.error(error_str)
         logger.error(
             'EXCEPTION: request failed ' + \
             '\r\texception={0} '.format(error_msg) + \
@@ -96,19 +84,9 @@ def GET_crest_url(url, debug=DEBUG, logging=logger):
         raise error_msg #exception triggers @retry
 
     if request.status_code == requests.codes.ok:
-
         try:
             response = request.json()
         except Exception as error_msg:
-#            error_str = '''EXCEPTION: payload error
-#        exception={exception}
-#        url={url}'''.\
-#                format(
-#                    exception=str(error_msg),
-#                    url=url
-#                )
-#            if debug: print(error_str)
-#            if logging: logging.error(error_str)
             logger.error(
                 'EXCEPTION: payload error ' + \
                 '\r\texception={0} '.format(error_msg) + \
@@ -116,15 +94,6 @@ def GET_crest_url(url, debug=DEBUG, logging=logger):
             )
             raise error_msg #exception triggers @retry
     else:
-#        error_str = '''EXCEPTION: bad status code
-#    exception={status_code}
-#    url={url}'''.\
-#            format(
-#                status_code=str(request.status_code),
-#                url=url
-#            )
-#        if debug: print(error_str)
-#        if logging: logging.error(error_str)
         logger.error(
             'EXCEPTION: bad status code ' + \
             '\r\texception={0} '.format(request.status_code) + \
@@ -137,28 +106,28 @@ def GET_crest_url(url, debug=DEBUG, logging=logger):
 @timeit
 def fetch_map_info(systemid, debug=DEBUG, logging=logger):
     '''ping CREST for map info.  Return regionid, neighbor_list'''
+    logging.info('-- Fetching region info from CREST')
     solarsystem_url = CREST_BASE_URL + SOLARSYSTEM_ENDPOINT
     solarsystem_url = solarsystem_url.format(systemid=systemid)
     solarsystem_info = GET_crest_url(solarsystem_url, debug, logging)
 
-    if debug: print('-- Fetching region info from CREST')
-    if logging: logging.info('-- Fetching region info from CREST')
     constellation_url = solarsystem_info['constellation']['href']
     constellation_info = GET_crest_url(constellation_url, DEBUG, logger)
     region_url = constellation_info['region']['href']
     region_info = GET_crest_url(region_url, debug, logging) #TODO: split('/')
     regionid = int(region_info['id'])
 
+    #FIXME: vvv citadel location not supported by CREST (yet?)
     neighbor_list = []
-    #for stargate in solarsystem_info['stargates']:
-    #    stargate_name = stargate['name']
-    #    if debug: print('--Fetching stargate info: ' + stargate_name)
-    #    if logging: logging.info('-- Fetching stargate info: ' + stargate_name)
+#    for stargate in solarsystem_info['stargates']:
+#        stargate_name = stargate['name']
+#        if debug: print('--Fetching stargate info: ' + stargate_name)
+#        if logging: logging.info('-- Fetching stargate info: ' + stargate_name)
 #
-    #    stargate_url = stargate['href']
-    #    stargate_info = GET_crest_url(stargate_url, debug, logging)
+#        stargate_url = stargate['href']
+#        stargate_info = GET_crest_url(stargate_url, debug, logging)
 #
-    #    neighbor_list.append(int(stargate_info['destination']['system']['id']))
+#        neighbor_list.append(int(stargate_info['destination']['system']['id']))
 
     return regionid, neighbor_list
 
@@ -166,7 +135,7 @@ class CrestPageFetcher(object):
     '''container for easier fetch/process of multi-page crest requests'''
     _debug = False
     _logger= None
-    def __init__(self, base_url, debug=DEBUG, logging=None):
+    def __init__(self, base_url, debug=DEBUG, logging=logger):
         '''initialize container'''
         self.all_data = []
         self.page_count = 0
@@ -188,15 +157,11 @@ class CrestPageFetcher(object):
         try:
             payload = GET_crest_url(base_url, self._debug, self._logger)
         except Exception as error_msg:
-            error_str = '''EXCEPTION: Unable to process get_pagecount request
-        exception={exception}
-        url={base_url}'''.\
-                format(
-                    exception=str(error_msg),
-                    base_url=base_url
-                )
-            if self._debug: print(error_str)
-            if self._logger: self._logger.error(error_str)
+            self._logger.error(
+                'EXCEPTION: Unable to process get_pagecount request ' + \
+                '\r\texception={0} '.format(error_msg) + \
+                '\r\turl={0} '.format(base_url)
+            )
             raise error_msg
 
         try:
@@ -205,21 +170,18 @@ class CrestPageFetcher(object):
             self.all_data.extend(payload['items'])
         except KeyError as error_msg:
             #note: even 1-page resources should return pageCount/totalCount
-            error_str = '''EXCEPTION: could not find required metadata keys
-        exception={exception}
-        url={base_url}'''.\
-                format(
-                    exception=str(error_msg),
-                    base_url=base_url
-                )
-            if self._debug: print(error_str)
-            if self._logger: self._logger.error(error_str)
+            self._logger.error(
+                'EXCEPTION: could not find required metadata keys ' + \
+                '\r\texception={0} '.format(error_msg) + \
+                '\r\turl={0}'.format(base_url)
+            )
             raise error_msg
 
         return page_count, total_count
 
     def fetch_pages(self):
         '''multi-threadded fetch of remaining pages'''
+        raise NotImplementedError('fetch_pages() for multithreaded page fetch.')
         fetched_data = []
         fetched_data[0] = self.all_data #page0 should already be loaded
 
@@ -248,15 +210,11 @@ class CrestPageFetcher(object):
             try:
                 payload = GET_crest_url(page_url, self._debug, self._logger)
             except Exception as error_msg:
-                error_str = '''EXCEPTION: Unable to process get_pagecount request
-            exception={exception}
-            url={base_url}'''.\
-                    format(
-                        exception=str(error_msg),
-                        base_url=page_url
-                    )
-                if self._debug: print(error_str)
-                if self._logger: self._logger.error(error_str)
+                self._logger.error(
+                    'EXCEPTION: Unable to process get_pagecount request ' + \
+                    '\r\texception={0} '.format(error_msg) + \
+                    '\r\turl={0} '.format(page_url)
+                )
                 raise error_msg
 
             page += 1
