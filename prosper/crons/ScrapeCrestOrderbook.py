@@ -78,7 +78,7 @@ def GET_crest_url(url, debug=DEBUG):
     except Exception as error_msg:
         logger.error(
             'EXCEPTION: request failed ' + \
-            '\r\texception={0} '.format(error_msg) + \
+            '\r\texception={0} '.format(int(error_msg)) + \
             '\r\turl={0} '.format(url)
         )
         raise error_msg #exception triggers @retry
@@ -89,7 +89,7 @@ def GET_crest_url(url, debug=DEBUG):
         except Exception as error_msg:
             logger.error(
                 'EXCEPTION: payload error ' + \
-                '\r\texception={0} '.format(error_msg) + \
+                '\r\texception={0} '.format(str(error_msg)) + \
                 '\r\turl={0} '.format(url)
             )
             raise error_msg #exception triggers @retry
@@ -156,7 +156,7 @@ class CrestPageFetcher(object):
         except Exception as error_msg:
             self._logger.error(
                 'EXCEPTION: Unable to process get_pagecount request ' + \
-                '\r\texception={0} '.format(error_msg) + \
+                '\r\texception={0} '.format(str(error_msg)) + \
                 '\r\turl={0} '.format(base_url)
             )
             raise error_msg
@@ -169,7 +169,7 @@ class CrestPageFetcher(object):
             #note: even 1-page resources should return pageCount/totalCount
             self._logger.error(
                 'EXCEPTION: could not find required metadata keys ' + \
-                '\r\texception={0} '.format(error_msg) + \
+                '\r\texception={0} '.format(str(error_msg)) + \
                 '\r\turl={0}'.format(base_url)
             )
             raise error_msg
@@ -209,7 +209,7 @@ class CrestPageFetcher(object):
             except Exception as error_msg:
                 self._logger.error(
                     'EXCEPTION: Unable to process get_pagecount request ' + \
-                    '\r\texception={0} '.format(error_msg) + \
+                    '\r\texception={0} '.format(str(error_msg)) + \
                     '\r\turl={0} '.format(page_url)
                 )
                 raise error_msg
