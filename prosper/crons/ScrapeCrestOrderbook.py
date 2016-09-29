@@ -118,7 +118,7 @@ def fetch_map_info(systemid, debug=DEBUG):
     regionid = int(region_info['id'])
 
     #FIXME: vvv citadel location not supported by CREST (yet?)
-    neighbor_list = []
+#    neighbor_list = []
 #    for stargate in solarsystem_info['stargates']:
 #        stargate_name = stargate['name']
 #        if debug: print('--Fetching stargate info: ' + stargate_name)
@@ -129,7 +129,7 @@ def fetch_map_info(systemid, debug=DEBUG):
 #
 #        neighbor_list.append(int(stargate_info['destination']['system']['id']))
 
-    return regionid, neighbor_list
+    return regionid
 
 class CrestPageFetcher(object):
     '''container for easier fetch/process of multi-page crest requests'''
@@ -147,9 +147,6 @@ class CrestPageFetcher(object):
             self.page_count, self.total_count = self.get_pagecount(base_url)
         except Exception as error_msg:
             raise error_msg #logged at lower level
-
-        print(self.page_count)
-        print(self.total_count)
 
     @timeit
     def get_pagecount(self, base_url):
@@ -242,12 +239,11 @@ def cuttoff(group, outlier_factor=OUTLIER_FACTOR):
         raise KeyError('BUY or SELL not found in group.grouping=' + key_str)
 
 @timeit
-def pandify_data(data, debug=DEBUG, logging=logger):
+def pandify_data(data, debug=DEBUG):
     '''process data into dataframe for writing'''
     pd_data = pandas.DataFrame(data)
 
-    if debug: print('-- removing unneeded data from frame')
-    if logging: logging.info('-- removing unneeded data from frame')
+    logger.info('-- removing unneeded data from dataframe')
     pd_data = pd_data[pd_data.duration < 365]   #clip all NPC orders
     pd_data_hub = pd_data[pd_data.stationID.isin(HUB_LIST)]
     pd_data_citadel = pd_data[pd_data.stationID > 70000000]
@@ -266,54 +262,16 @@ def pandify_data(data, debug=DEBUG, logging=logger):
         pd_data['buy_sell'].map(str)
         #pd_data['stationID'].map(str) + '-' + \
 
-    if debug: print('-- conditioning frame for export')
-    if logging: logging.info('-- conditioning frame for export')
-
+    logger.info('-- running statistics on dataframe')
     group = ['stationID', 'type', 'buy_sell']
     pd_data['min']     = pd_data.groupby('grouping')['price'].transform('min')
     pd_data['max']     = pd_data.groupby('grouping')['price'].transform('max')
     pd_data['vol_tot'] = pd_data.groupby('grouping')['volume'].transform('cumsum')
 
-    if debug: print('-- calculating stats')
-    if logging: logging.info('-- calculating stats')
-
     pd_data['price_med'] = pd_data.groupby('grouping').apply(wmed, 0.5)
     pd_data['price_q25'] = pd_data.groupby('grouping').apply(wmed, 0.25)
     pd_data['price_q75'] = pd_data.groupby('grouping').apply(wmed, 0.75)
     #pd_data['price_cutoff'] = pd_data.groupby('grouping').apply(cuttoff)
-
-#    for key in pd_data.grouping.unique():
-#        #print(key)
-#        value_counts = pd_data[pd_data.grouping == key]
-#        value_counts = value_counts[['price', 'volume']]
-#
-#        median = wquantile(value_counts['price'], value_counts['volume'], 0.5)
-#        quartile = 0
-#        cutoff = 0
-#        ## Filter out to valid orders only ##
-#        if 'SELL' in key:
-#            quartile = wquantile(value_counts['price'], value_counts['volume'], 0.75)
-#            cutoff = quartile * OUTLIER_FACTOR
-#            value_counts = value_counts[value_counts.price < cutoff]
-#        else:
-#            quartile = wquantile(value_counts['price'], value_counts['volume'], 0.25)
-#            cutoff = quartile / OUTLIER_FACTOR
-#            value_counts = value_counts[value_counts.price > cutoff]
-#        prices  = value_counts.price.values
-#        volumes = value_counts.volume.values
-#        average = numpy.dot(prices, volumes)/sum(volumes) #sumproduct(prices, volumes)/sum(volume)
-#
-#        pd_data.loc[pd_data.grouping == key, 'vol_adj']      = sum(volumes)
-#        pd_data.loc[pd_data.grouping == key, 'price_avg']    = average
-#        pd_data.loc[pd_data.grouping == key, 'price_med']    = median
-#        pd_data.loc[pd_data.grouping == key, 'price_q']      = quartile
-#        pd_data.loc[pd_data.grouping == key, 'price_cutoff'] = cutoff
-    #    ## vv DEBUG vv ##
-    #    count += 1
-    #    if count > 10:
-    #        exit()
-    #    ## ^^ DEBUG ^^ ##
-    #print(pd_data.columns.values)
 
     if debug: pd_data.to_csv('test_data.csv')
 
@@ -352,15 +310,16 @@ class CrestDriver(cli.Application):
     def main(self):
         '''meat of script.  Logic runs here.  Write like step list'''
         for systemid in self.system_list:
-            if self.verbose: print('looking up CREST MAP info for system: ' + str(systemid))
-            regionid, neighbor_list = fetch_map_info(systemid, DEBUG, logger)
-            if self.verbose: print('FETCHING REGION: ' + str(regionid))
+            #if self.verbose: print('looking up CREST MAP info for system: ' + str(systemid))
+            logger.info('Looking up CREST MAP info for system ' + str(systemid))
+            regionid = fetch_map_info(systemid, DEBUG)
+            #if self.verbose: print('FETCHING REGION: ' + str(regionid))
+            logger.info('Fetching orderbook for region: ' + str(systemid))
             crest_url = CREST_BASE_URL + ENDPOINT_URI
             crest_url = crest_url.format(
                 regionid=regionid
-                )
-            if self.verbose: print('-- CREST_URL=' + crest_url)
-            driver_obj = CrestPageFetcher(crest_url, DEBUG, logger)
+            )
+            driver_obj = CrestPageFetcher(crest_url, DEBUG)
 
             all_data = driver_obj.all_data
             all_data = driver_obj.fetch_endpoint()
