@@ -63,7 +63,7 @@ def timeit(method):
     wait_exponential_max=RETRY_TIME,
     stop_max_attempt_number=RETRY_COUNT)
 #@RateLimiter?
-def GET_crest_url(url, debug=DEBUG, logging=logger):
+def GET_crest_url(url, debug=DEBUG):
     '''GET methods for fetching CREST data'''
     response = None
     header = {
@@ -104,17 +104,17 @@ def GET_crest_url(url, debug=DEBUG, logging=logger):
     return response
 
 @timeit
-def fetch_map_info(systemid, debug=DEBUG, logging=logger):
+def fetch_map_info(systemid, debug=DEBUG):
     '''ping CREST for map info.  Return regionid, neighbor_list'''
-    logging.info('-- Fetching region info from CREST')
+    logger.info('-- Fetching region info from CREST')
     solarsystem_url = CREST_BASE_URL + SOLARSYSTEM_ENDPOINT
     solarsystem_url = solarsystem_url.format(systemid=systemid)
-    solarsystem_info = GET_crest_url(solarsystem_url, debug, logging)
+    solarsystem_info = GET_crest_url(solarsystem_url, debug)
 
     constellation_url = solarsystem_info['constellation']['href']
-    constellation_info = GET_crest_url(constellation_url, DEBUG, logger)
+    constellation_info = GET_crest_url(constellation_url, debug)
     region_url = constellation_info['region']['href']
-    region_info = GET_crest_url(region_url, debug, logging) #TODO: split('/')
+    region_info = GET_crest_url(region_url, debug) #TODO: split('/')
     regionid = int(region_info['id'])
 
     #FIXME: vvv citadel location not supported by CREST (yet?)
@@ -155,7 +155,7 @@ class CrestPageFetcher(object):
     def get_pagecount(self, base_url):
         '''hits endpoint to get pagecount.  Also loads first-page data to avoid retries'''
         try:
-            payload = GET_crest_url(base_url, self._debug, self._logger)
+            payload = GET_crest_url(base_url, self._debug)
         except Exception as error_msg:
             self._logger.error(
                 'EXCEPTION: Unable to process get_pagecount request ' + \
@@ -208,7 +208,7 @@ class CrestPageFetcher(object):
                 page_number=page
             )
             try:
-                payload = GET_crest_url(page_url, self._debug, self._logger)
+                payload = GET_crest_url(page_url, self._debug)
             except Exception as error_msg:
                 self._logger.error(
                     'EXCEPTION: Unable to process get_pagecount request ' + \
