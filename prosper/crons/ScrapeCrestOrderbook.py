@@ -53,7 +53,7 @@ def timeit(method):
         result = method(*args, **kw)
         te = time.time()
 
-        if DEBUG: print('-- %r %2.2f sec' % (method.__name__, te-ts))
+        logger.debug('-- %r %2.2f sec' % (method.__name__, te-ts))
         return result
 
     return timed
@@ -69,26 +69,30 @@ def GET_crest_url(url, debug=DEBUG, logging=logger):
     header = {
         'User-Agent': USERAGENT
     }
-    debug_str = '-- Fetching ' + url
-    if debug: print(debug_str)
-    if logging: logging.debug(debug_str)
-
+    #debug_str = '-- Fetching ' + url
+    #if debug: print(debug_str)
+    #if logging: logging.debug(debug_str)
+    logger.info('-- Fetching ' + url)
     try:
         request = requests.get(
             url,
             headers=header
         )
     except Exception as error_msg:
-        error_str = '''EXCEPTION: request failed
-    exception={exception}
-    url={url}'''.\
-            format(
-                exception=str(error_msg),
-                url=url
-            )
-        if debug: print(error_str)
-        if logging: logging.error(error_str)
-
+#        error_str = '''EXCEPTION: request failed
+#    exception={exception}
+#    url={url}'''.\
+#            format(
+#                exception=str(error_msg),
+#                url=url
+#            )
+#        if debug: print(error_str)
+#        if logging: logging.error(error_str)
+        logger.error(
+            'EXCEPTION: request failed ' + \
+            '\r\texception={0} '.format(error_msg) + \
+            '\r\turl={0} '.format(url)
+        )
         raise error_msg #exception triggers @retry
 
     if request.status_code == requests.codes.ok:
@@ -96,28 +100,36 @@ def GET_crest_url(url, debug=DEBUG, logging=logger):
         try:
             response = request.json()
         except Exception as error_msg:
-            error_str = '''EXCEPTION: payload error
-        exception={exception}
-        url={url}'''.\
-                format(
-                    exception=str(error_msg),
-                    url=url
-                )
-            if debug: print(error_str)
-            if logging: logging.error(error_str)
-
+#            error_str = '''EXCEPTION: payload error
+#        exception={exception}
+#        url={url}'''.\
+#                format(
+#                    exception=str(error_msg),
+#                    url=url
+#                )
+#            if debug: print(error_str)
+#            if logging: logging.error(error_str)
+            logger.error(
+                'EXCEPTION: payload error ' + \
+                '\r\texception={0} '.format(error_msg) + \
+                '\r\turl={0} '.format(url)
+            )
             raise error_msg #exception triggers @retry
     else:
-        error_str = '''EXCEPTION: bad status code
-    exception={status_code}
-    url={url}'''.\
-            format(
-                status_code=str(request.status_code),
-                url=url
-            )
-        if debug: print(error_str)
-        if logging: logging.error(error_str)
-
+#        error_str = '''EXCEPTION: bad status code
+#    exception={status_code}
+#    url={url}'''.\
+#            format(
+#                status_code=str(request.status_code),
+#                url=url
+#            )
+#        if debug: print(error_str)
+#        if logging: logging.error(error_str)
+        logger.error(
+            'EXCEPTION: bad status code ' + \
+            '\r\texception={0} '.format(request.status_code) + \
+            '\r\turl={0} '.format(url)
+        )
         raise Exception('BAD STATUS CODE: ' + str(requests.status_code))
 
     return response
