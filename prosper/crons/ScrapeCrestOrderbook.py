@@ -29,8 +29,7 @@ config = get_config(CONFIG_ABSPATH)
 logger = create_logger(
     'debug-CrestOrderBook',
     HERE,
-    config,
-    'DEBUG'
+    config
 )
 
 ## CREST GLOBALS ##
@@ -304,8 +303,15 @@ class CrestDriver(cli.Application):
     )
     def enable_debug(self):
         '''see help -- run local-only'''
-        global DEBUG
+        global DEBUG, logger
         DEBUG = True
+        logger = create_logger(
+            'debug-CrestOrderBook',
+            HERE,
+            config,
+            'DEBUG'
+        )
+
 
     def main(self):
         '''meat of script.  Logic runs here.  Write like step list'''
