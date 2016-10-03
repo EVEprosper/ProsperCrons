@@ -3,7 +3,7 @@
     Shamelessly hacked from https://github.com/fuzzysteve/FuzzMarket'''
 
 import time #TODO: reduce to TIME or DATETIME?
-import datetime
+from datetime import datetime
 #import json #ujson
 from os import path #TODO: path->plumbum?
 
@@ -99,6 +99,18 @@ def GET_crest_url(url, debug=DEBUG):
             '\r\turl={0} '.format(url)
         )
         raise Exception('BAD STATUS CODE: ' + str(requests.status_code))
+
+    try:
+        #add request_time on to the response object for record keeping
+        tmp_date = request.headers['Date']
+        fetch_time = datetime.strptime(tmp_date, '%a, %d %b %Y %H:%M:%S %Z')
+        response['request_time'] = fetch_time.strftime('%Y-%m-%d %H:%M:%S')
+    except Exception as error_msg:
+        logger.warning(
+            'WARNING: unable to get date from request object'
+            '\r\texception={0}'.format(str(error_msg))
+        )
+        logger.debug(request.headers)
 
     return response
 
@@ -238,7 +250,7 @@ def cuttoff(group, outlier_factor=OUTLIER_FACTOR):
         raise KeyError('BUY or SELL not found in group.grouping=' + key_str)
 
 @timeit
-def pandify_data(data, debug=DEBUG):
+def pandify_data(data, datetime, debug=DEBUG):
     '''process data into dataframe for writing'''
     pd_data = pandas.DataFrame(data)
 
@@ -272,6 +284,9 @@ def pandify_data(data, debug=DEBUG):
     pd_data['price_q75'] = pd_data.groupby('grouping').apply(wmed, 0.75)
     #pd_data['price_cutoff'] = pd_data.groupby('grouping').apply(cuttoff)
 
+    pd_return = pandas.DataFrame()
+    pd_return['grouping'] = pd_data.groupby('grouping')
+    pd_return['typeid']
     if debug: pd_data.to_csv('test_data.csv')
 
     return pd_data
