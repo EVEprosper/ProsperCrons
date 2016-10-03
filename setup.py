@@ -32,8 +32,13 @@ setup(
     ],
     keywords='prosper eveonline api database',
     packages=find_packages(),
-    package_data={
+    data_files={
         ('docs', include_all_subfiles('docs')),
+    },
+    package_data={
+        'prosper':[
+            'crons/cron_config.cfg'
+        ]
     },
     install_requires=[
         'numpy==1.11.1',

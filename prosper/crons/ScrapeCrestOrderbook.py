@@ -305,12 +305,13 @@ class CrestDriver(cli.Application):
         '''see help -- run local-only'''
         global DEBUG, logger
         DEBUG = True
-        logger = create_logger(
-            'debug-CrestOrderBook',
-            HERE,
-            config,
-            'DEBUG'
-        )
+        if self.verbose:
+            logger = create_logger(
+                'debug-CrestOrderBook',
+                HERE,
+                config,
+                'DEBUG'
+            )
 
 
     def main(self):
