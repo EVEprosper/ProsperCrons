@@ -31,7 +31,7 @@ setup(
         'Programming Language :: Python :: 3.5'
     ],
     keywords='prosper eveonline api database',
-    packages=find_packages(hack_find_packages('prosper')),
+    packages=hack_find_packages('prosper'),
     data_files={
         ('docs', include_all_subfiles('docs')),
     },
