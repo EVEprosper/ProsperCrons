@@ -154,6 +154,7 @@ class CrestPageFetcher(object):
         self._debug = debug
         self._logger = logging
         self.current_page = 1
+        self.fetch_time = ''
         try:
             self.page_count, self.total_count = self.get_pagecount(base_url)
         except Exception as error_msg:
@@ -184,7 +185,7 @@ class CrestPageFetcher(object):
                 '\r\turl={0}'.format(base_url)
             )
             raise error_msg
-
+        self.fetch_time = payload['request_time'] #FIXME: scope is bad
         return page_count, total_count
 
     def fetch_pages(self):
@@ -250,7 +251,7 @@ def cuttoff(group, outlier_factor=OUTLIER_FACTOR):
         raise KeyError('BUY or SELL not found in group.grouping=' + key_str)
 
 @timeit
-def pandify_data(data, datetime, debug=DEBUG):
+def pandify_data(data, fetch_time, debug=DEBUG):
     '''process data into dataframe for writing'''
     pd_data = pandas.DataFrame(data)
 
@@ -284,9 +285,20 @@ def pandify_data(data, datetime, debug=DEBUG):
     pd_data['price_q75'] = pd_data.groupby('grouping').apply(wmed, 0.75)
     #pd_data['price_cutoff'] = pd_data.groupby('grouping').apply(cuttoff)
 
+    logger.info('-- building buy/sell summaries')
     pd_return = pandas.DataFrame()
-    pd_return['grouping'] = pd_data.groupby('grouping')
-    pd_return['typeid']
+    pd_sell = pd_data[pd_data.buy == False]
+    pd_sell_tmp = pandas.DataFrame()
+    pd_sell_tmp['grouping'] = pd_sell.groupby('grouping')['grouping']
+    pd_sell_tmp['price_datetime'] = fetch_time
+    pd_sell_tmp['locationid'] = pd_sell.groupby('grouping')['stationID'].min()
+    pd_sell_tmp['location_type'] = pd_sell.groupby('grouping')['station_type']
+    pd_sell_tmp['sell_min'] = pd_sell.groupby('grouping')['min'].min()
+    pd_sell_tmp['sell_avg'] = pd_sell.groupby('grouping')['price_med'].min()
+    pd_sell_tmp['sell_volume'] = pd_sell.groupby('grouping')['vol_tot'].min()
+
+    if debug: pd_sell_tmp.to_csv('sell_data.csv')
+
     if debug: pd_data.to_csv('test_data.csv')
 
     return pd_data
@@ -328,7 +340,6 @@ class CrestDriver(cli.Application):
                 'DEBUG'
             )
 
-
     def main(self):
         '''meat of script.  Logic runs here.  Write like step list'''
         for systemid in self.system_list:
@@ -345,7 +356,7 @@ class CrestDriver(cli.Application):
 
             all_data = driver_obj.all_data
             all_data = driver_obj.fetch_endpoint()
-            #pd_all_data = pandify_data(all_data, DEBUG, logger)
+            pd_all_data = pandify_data(all_data, driver_obj.fetch_time, DEBUG)
 
             ## vv DEBUG vv ##
             with open('test_data.json', 'w') as filehandle:
