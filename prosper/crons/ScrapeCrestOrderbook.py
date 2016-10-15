@@ -17,7 +17,8 @@ from plumbum import cli
 import ujson as json
 requests.models.json = json #https://github.com/kennethreitz/requests/issues/1595
 
-from prosper.common.utilities import get_config, create_logger
+from prosper.common.prosper_logger import create_logger
+from prosper.common.prosper_config import get_config
 from prosper.warehouse.FetchConnection import *
 from prosper.warehouse.Connection import * #OPTIONAL: for Exception handling
 
@@ -290,18 +291,15 @@ def pandify_data(data, fetch_time, debug=DEBUG):
     pd_sell = pd_data[pd_data.buy == False]
     pd_sell_tmp = pandas.DataFrame()
     pd_sell_tmp['grouping'] = pd_sell.groupby('grouping')['grouping']
-    pd_sell_tmp['price_datetime'] = fetch_time
-    pd_sell_tmp['locationid'] = pd_sell.groupby('grouping')['stationID'].min()
-    pd_sell_tmp['location_type'] = pd_sell.groupby('grouping')['station_type']
-    pd_sell_tmp['sell_min'] = pd_sell.groupby('grouping')['min'].min()
-    pd_sell_tmp['sell_avg'] = pd_sell.groupby('grouping')['price_med'].min()
-    pd_sell_tmp['sell_volume'] = pd_sell.groupby('grouping')['vol_tot'].min()
+
 
     if debug: pd_sell_tmp.to_csv('sell_data.csv')
 
     if debug: pd_data.to_csv('test_data.csv')
 
     return pd_data
+
+
 
 class CrestDriver(cli.Application):
     verbose = cli.Flag(
