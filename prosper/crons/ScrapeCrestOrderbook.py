@@ -17,7 +17,7 @@ from plumbum import cli
 import ujson as json
 requests.models.json = json #https://github.com/kennethreitz/requests/issues/1595
 
-from prosper.common.prosper_logger import create_logger
+from prosper.common.prosper_logging import create_logger
 from prosper.common.prosper_config import get_config
 from prosper.warehouse.FetchConnection import *
 from prosper.warehouse.Connection import * #OPTIONAL: for Exception handling
