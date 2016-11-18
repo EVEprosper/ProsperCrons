@@ -94,7 +94,7 @@ setup(
         'six==1.10.0',
         'ujson==1.35',
         'wquantiles==0.4',
-        'ProsperCommon==0.3.2a0'
+        'ProsperCommon==0.3.2a2'
     ],
     dependency_links=[
         'https://github.com/EVEprosper/ProsperCommon.git#egg=ProsperCommon',
