@@ -240,10 +240,10 @@ class FetchKillmails(cli.Application):
         ['-s', '--start'],
         str,
         help='startdate for desired scrape')
-    def start_date(self, start_date_str):
+    def parse_start_date(self, start_date_str):
         """parse startdate from CLI"""
         try:
-            self.start_date = datetime.strptime('%Y-%m-%d', start_date_str)
+            self.start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
         except ValueError as err_msg:
             raise err_msg
 
@@ -252,15 +252,18 @@ class FetchKillmails(cli.Application):
         ['-e', '--end'],
         str,
         help='enddate for desired scrape: default=' + end_date.strftime('%Y-%m-%d'))
-    def end_date(self, end_date_str):
+    def parse_end_date(self, end_date_str):
         """parse enddate from CLI: default = today"""
         try:
-            self.end_date = datetime.strptime('%Y-%m-%d', end_date_str)
+            self.end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
         except ValueError as err_msg:
             raise err_msg
 
     def main(self):
         logger.debug('hello world')
+
+        logger.info('start_date=' + self.start_date.strftime('%Y-%m-%d'))
+        logger.info('end_date=' + self.end_date.strftime('%Y-%m-%d'))
 
         ## Fill out list of existing db's between dates
         existing_kms = []
