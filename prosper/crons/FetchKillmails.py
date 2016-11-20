@@ -13,6 +13,8 @@ from plumbum import cli
 from tinydb import TinyDB, Query
 import dataset
 
+requests.models.json = ujson
+
 import prosper.common.prosper_logging as p_logging
 import prosper.common.prosper_config as p_config
 #import prosper.esi.eve_esi as esi
