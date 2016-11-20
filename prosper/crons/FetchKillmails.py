@@ -172,7 +172,7 @@ def get_killmails_from_eve(
 
     #TODO: multithread
     kill_mail_list = []
-    for kill_id, kill_hash in zkb_km_list:
+    for kill_id, kill_hash in zkb_km_list.items():
         if kill_id in existing_kms:
             logger.debug('found {0} in existing list'.format(kill_id))
             if not force_pull:  #FIXME: this is dumb
@@ -180,7 +180,7 @@ def get_killmails_from_eve(
 
         km_url = CREST_KILLMAIL_ENDPOINT.format(
             kill_id=kill_id,
-            kill_hansh=kill_hash
+            kill_hash=kill_hash
         )
         try:
             kill_mail = fetch_address(km_url)
@@ -277,22 +277,23 @@ class FetchKillmails(cli.Application):
             kms_processed = []
         while query_date < self.end_date:
             ## Get killmails from zkb bulk endpoint ##
+            if self.limit <= kms_count:
+                logger.info('limit reached, stopping queries')
+                break
             logger.info('Fetching kills for ' + query_date.strftime('%Y-%m-%d'))
-            zkb_km_list = get_killmail_list_from_zkb(query_date, self.limit)
-            kms_count = kms_count + len(zkb_km_list)
-            if kms_count < self.limit:
-                #decrement limit if required
-                self.limit -= kms_count
+            #FIXME vv: None + int = what?
+            zkb_km_list = get_killmail_list_from_zkb(query_date, kms_count + self.limit)
+            kms_count += len(zkb_km_list)
 
             ## Get raw killmails from EVE (crest/ESI) ##
             kms_processed_day = get_killmails_from_eve(zkb_km_list, existing_kms)
             if bool_do_file:
                 kms_processed.extend(kms_processed_day)
 
-            if self.limit < 0:
-                logger.info('limit reached, stopping queries')
-                break
-            query_date = self.query_date + timedelta(days=1)
+            query_date = query_date + timedelta(days=1)
+
+        with open('killmails.json', 'w') as filehandle:
+            ujson.dump(kms_processed, filehandle, indent=2)
 
 if __name__ == '__main__':
     FetchKillmails.run()
