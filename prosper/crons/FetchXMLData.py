@@ -16,9 +16,6 @@ import dataset
 requests.models.json = ujson
 
 import prosper.common as common
-#import prosper.common.prosper_logging as p_logging
-#import prosper.common.prosper_config as p_config
-#import prosper.esi.eve_esi as esi
 
 HERE = path.abspath(path.dirname(__file__))
 ME = __file__.replace('.py', '')
@@ -78,4 +75,4 @@ class FetchXMLData(cli.Application):
         logger.debug('hello world')
 
 if __name__ == '__main__':
-    FetchKillmails.run()
+    FetchXMLData.run()
