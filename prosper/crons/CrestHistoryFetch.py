@@ -38,10 +38,11 @@ if not path.exists(CACHE_ABSPATH):
     makedirs(CACHE_ABSPATH)
 
 TYPEID_CACHE_FILE = path.join(CACHE_ABSPATH, config.get(ME, 'typeid_cache'))
+TYPEID_CACHE_AGE = config.get(ME, 'cache_age')
 TYPEID_DB = TinyDB(TYPEID_CACHE_FILE)
-def get_valid_typeids(cache_filename, force_refresh=False):
+def get_valid_typeids(force_refresh=False):
     '''get valid typeids from tinydb local cache'''
-
+    logger.info('checking tinydb for list of typeids')
 
 @p_util.Timeit(logger)
 def hello_world():
