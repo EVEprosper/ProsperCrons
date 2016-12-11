@@ -94,10 +94,13 @@ setup(
         'six==1.10.0',
         'ujson==1.35',
         'wquantiles==0.4',
-        'ProsperCommon==0.3.2a2'
+        'ProsperCommon==0.3.4',
+        'ProsperWarehouse==0.0.4'
     ],
-    dependency_links=[
-        'https://github.com/EVEprosper/ProsperCommon.git#egg=ProsperCommon',
-        'https://github.com/EVEprosper/ProsperWarehouse.git#egg=ProsperWarehouse' #not quite right
-    ]
+    tests_require=[
+        'pytest==3.0.3'
+    ],
+    cmdclass={
+        'test':PyTest
+    }
 )

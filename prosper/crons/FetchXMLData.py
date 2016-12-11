@@ -16,6 +16,7 @@ import dataset
 requests.models.json = ujson
 
 import prosper.common as common
+import prosper.warehouse as warehouse
 
 HERE = path.abspath(path.dirname(__file__))
 ME = __file__.replace('.py', '')
