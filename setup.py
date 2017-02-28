@@ -1,4 +1,4 @@
-'''wheel setup for Prosper common utilities'''
+"""Setup for ProsperCrons"""
 
 from os import path, listdir
 from setuptools import setup, find_packages
@@ -53,7 +53,7 @@ class PyTest(TestCommand):
 
     def initialize_options(self):
         TestCommand.initialize_options(self)
-        self.pytest_args = ['test']    #load defaults here
+        self.pytest_args = ['Tests']    #load defaults here
 
     def run_tests(self):
         import shlex
@@ -76,9 +76,10 @@ setup(
     ],
     keywords='prosper eveonline api database',
     packages=hack_find_packages('prosper'),
-    data_files={
-        #('docs', include_all_subfiles('docs')),
-    },
+    data_files=[
+        ('Docs', include_all_subfiles('Docs')),
+        ('Tests', include_all_subfiles('Tests'))
+    ],
     package_data={
         'prosper':[
             'crons/cron_config.cfg'
@@ -87,18 +88,18 @@ setup(
     install_requires=[
         'numpy==1.11.1',
         'pandas==0.18.1',
-        'plumbum==1.6.2',
+        'plumbum~=1.6.2',
         'ratelimiter==1.0.2.post0',
-        'requests==2.11.1',
+        'requests~=2.13',
         'retrying==1.3.3',
-        'six==1.10.0',
         'ujson==1.35',
         'wquantiles==0.4',
-        'ProsperCommon==0.3.4',
-        'ProsperWarehouse==0.0.4'
+        'dataset~=0.8.0',
+        'ProsperCommon~=0.3.8',
+        #'ProsperWarehouse==0.0.4'   #TODO: remove?
     ],
     tests_require=[
-        'pytest==3.0.3'
+        'pytest~=3.0'
     ],
     cmdclass={
         'test':PyTest
